@@ -314,10 +314,10 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 8px;
+      padding: 8px 10px;
       background: #fafafa;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 13px;
       min-width: 0;
     }
     .chart-breakdown-dot {
@@ -330,20 +330,14 @@
       font-weight: 600;
       color: #333;
       flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      min-width: 0;
       white-space: nowrap;
     }
     .chart-breakdown-amount {
       color: #666;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
-    }
-    .chart-breakdown-pct {
-      color: #999;
-      font-size: 11px;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .empty-state {
@@ -1355,11 +1349,11 @@
         totals[t.category] = (totals[t.category] || 0) + t.amount;
       });
 
-      // 按金额降序
-      const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+      // 环形图（Chart.js doughnut）默认从 12 点钟方向开始、顺时针绘制
+      // 因此明细列表按"首次出现顺序"（即 Map 插入顺序）排列，对应顺时针
+      const entries = Object.entries(totals);
       const labels = entries.map(e => e[0]);
       const values = entries.map(e => e[1]);
-      const grandTotal = values.reduce((s, v) => s + v, 0);
 
       // 颜色池
       const allCats = chartType === 'income'
@@ -1370,16 +1364,14 @@
         return cat ? cat.chartColor : '#999';
       });
 
-      // 渲染自定义明细列表（替代默认图例，2 列网格）
+      // 渲染自定义明细列表（2 列网格，顺时针顺序）
       els.chartBreakdown.innerHTML = entries.map(([name, val], i) => {
-        const pct = grandTotal > 0 ? (val / grandTotal * 100) : 0;
         const color = bgColors[i];
         return `
           <div class="chart-breakdown-item">
             <span class="chart-breakdown-dot" style="background: ${color}"></span>
             <span class="chart-breakdown-name">${name}</span>
             <span class="chart-breakdown-amount">¥${val.toFixed(2)}</span>
-            <span class="chart-breakdown-pct">${pct.toFixed(1)}%</span>
           </div>
         `;
       }).join('');
@@ -1404,17 +1396,14 @@
           maintainAspectRatio: false,
           cutout: '62%',
           plugins: {
-            legend: { display: false }, // 关闭默认图例，使用自定义明细列表
+            legend: { display: false },
             tooltip: {
               callbacks: {
                 title: (items) => {
                   if (!items.length) return '';
                   return labels[items[0].dataIndex];
                 },
-                label: (ctx) => {
-                  const pct = grandTotal > 0 ? (ctx.raw / grandTotal * 100) : 0;
-                  return `¥${ctx.raw.toFixed(2)}  ·  占比 ${pct.toFixed(1)}%`;
-                }
+                label: (ctx) => `¥${ctx.raw.toFixed(2)}`
               }
             }
           }
