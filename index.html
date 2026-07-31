@@ -1354,6 +1354,7 @@
       const entries = Object.entries(totals);
       const labels = entries.map(e => e[0]);
       const values = entries.map(e => e[1]);
+      const valuesSum = values.reduce((s, v) => s + v, 0);
 
       // 颜色池
       const allCats = chartType === 'income'
@@ -1395,6 +1396,7 @@
           responsive: true,
           maintainAspectRatio: false,
           cutout: '62%',
+          layout: { padding: 12 },
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -1403,11 +1405,53 @@
                   if (!items.length) return '';
                   return labels[items[0].dataIndex];
                 },
-                label: (ctx) => `¥${ctx.raw.toFixed(2)}`
+                label: (ctx) => {
+                  const pct = valuesSum > 0 ? (ctx.raw / valuesSum * 100) : 0;
+                  return `¥${ctx.raw.toFixed(2)}  ·  ${pct.toFixed(1)}%`;
+                }
               }
             }
           }
-        }
+        },
+        plugins: [{
+          id: 'doughnutPercentLabels',
+          afterDatasetsDraw(chart) {
+            const { ctx, data, chartArea } = chart;
+            const meta = chart.getDatasetMeta(0);
+            const total = data.datasets[0].data.reduce((s, v) => s + v, 0);
+            if (total <= 0) return;
+            const cx = (chartArea.left + chartArea.right) / 2;
+            const cy = (chartArea.top + chartArea.bottom) / 2;
+            const rOuter = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top) / 2;
+            const rLabel = (rOuter + (rOuter * 0.62)) / 2; // 环带中心半径
+
+            ctx.save();
+            ctx.font = '600 11px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            meta.data.forEach((arc, i) => {
+              const val = data.datasets[0].data[i];
+              const pct = val / total * 100;
+              // 占比小于 4% 跳过，避免文字重叠
+              if (pct < 4) return;
+
+              // 弧形中点角度（弧度）
+              const startAngle = arc.startAngle;
+              const endAngle = arc.endAngle;
+              const mid = (startAngle + endAngle) / 2;
+              const x = cx + rLabel * Math.cos(mid);
+              const y = cy + rLabel * Math.sin(mid);
+
+              // 文字阴影提升可读性
+              ctx.shadowColor = 'rgba(0,0,0,0.35)';
+              ctx.shadowBlur = 3;
+              ctx.fillStyle = '#fff';
+              ctx.fillText(`${pct.toFixed(1)}%`, x, y);
+            });
+            ctx.restore();
+          }
+        }]
       });
     }
 
