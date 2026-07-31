@@ -300,6 +300,52 @@
       justify-content: center;
     }
 
+    /* 自定义构成明细列表（替代 Chart.js 默认图例） */
+    .chart-breakdown {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 12px;
+      margin-top: 12px;
+    }
+    .chart-breakdown:empty {
+      display: none;
+    }
+    .chart-breakdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: #fafafa;
+      border-radius: 8px;
+      font-size: 12px;
+      min-width: 0;
+    }
+    .chart-breakdown-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .chart-breakdown-name {
+      font-weight: 600;
+      color: #333;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chart-breakdown-amount {
+      color: #666;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .chart-breakdown-pct {
+      color: #999;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
     .empty-state {
       text-align: center;
       color: var(--text-secondary);
@@ -892,6 +938,8 @@
             <div id="chartEmptyText">本月暂无支出记录</div>
           </div>
         </div>
+        <!-- 自定义明细列表（替代 Chart.js 默认图例） -->
+        <div class="chart-breakdown" id="chartBreakdown"></div>
       </div>
 
       <!-- 支出分类记账 -->
@@ -1095,6 +1143,7 @@
       chartEmpty: document.getElementById('chartEmpty'),
       chartEmptyText: document.getElementById('chartEmptyText'),
       chartTitle: document.getElementById('chartTitle'),
+      chartBreakdown: document.getElementById('chartBreakdown'),
       summaryCards: document.getElementById('summaryCards'),
     };
 
@@ -1289,6 +1338,7 @@
       if (data.length === 0) {
         els.chartCanvas.style.display = 'none';
         els.chartEmpty.style.display = 'block';
+        els.chartBreakdown.innerHTML = '';
         if (chartInstance) {
           chartInstance.destroy();
           chartInstance = null;
@@ -1320,11 +1370,19 @@
         return cat ? cat.chartColor : '#999';
       });
 
-      // 生成图例标签：类别  ¥金额  (占比%)
-      const legendLabels = labels.map((name, i) => {
-        const pct = grandTotal > 0 ? (values[i] / grandTotal * 100) : 0;
-        return `${name}  ¥${values[i].toFixed(2)}  (${pct.toFixed(1)}%)`;
-      });
+      // 渲染自定义明细列表（替代默认图例，2 列网格）
+      els.chartBreakdown.innerHTML = entries.map(([name, val], i) => {
+        const pct = grandTotal > 0 ? (val / grandTotal * 100) : 0;
+        const color = bgColors[i];
+        return `
+          <div class="chart-breakdown-item">
+            <span class="chart-breakdown-dot" style="background: ${color}"></span>
+            <span class="chart-breakdown-name">${name}</span>
+            <span class="chart-breakdown-amount">¥${val.toFixed(2)}</span>
+            <span class="chart-breakdown-pct">${pct.toFixed(1)}%</span>
+          </div>
+        `;
+      }).join('');
 
       if (chartInstance) {
         chartInstance.destroy();
@@ -1333,7 +1391,7 @@
       chartInstance = new Chart(els.chartCanvas, {
         type: 'doughnut',
         data: {
-          labels: legendLabels,
+          labels,
           datasets: [{
             data: values,
             backgroundColor: bgColors,
@@ -1346,30 +1404,12 @@
           maintainAspectRatio: false,
           cutout: '62%',
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                usePointStyle: true,
-                pointStyle: 'circle',
-                padding: 12,
-                font: { size: 11 },
-                boxWidth: 10,
-                generateLabels(chart) {
-                  // 保留 Chart.js 默认图例生成，再附加占比
-                  const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
-                  return base.map((b, i) => ({
-                    ...b,
-                    text: legendLabels[i] || b.text,
-                  }));
-                }
-              }
-            },
+            legend: { display: false }, // 关闭默认图例，使用自定义明细列表
             tooltip: {
               callbacks: {
                 title: (items) => {
                   if (!items.length) return '';
-                  const idx = items[0].dataIndex;
-                  return labels[idx];
+                  return labels[items[0].dataIndex];
                 },
                 label: (ctx) => {
                   const pct = grandTotal > 0 ? (ctx.raw / grandTotal * 100) : 0;
