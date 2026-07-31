@@ -2026,7 +2026,12 @@
       els.modalTitle.innerHTML = `记一笔${titleIcon}`;
       els.amountInput.value = '';
       els.noteInput.value = '';
-      els.dateInput.value = currentDate.toISOString().split('T')[0];
+      // 每次记账默认填当天（不受 currentDate 浏览位置影响）
+      const _now = new Date();
+      const _y = _now.getFullYear();
+      const _m = String(_now.getMonth() + 1).padStart(2, '0');
+      const _d = String(_now.getDate()).padStart(2, '0');
+      els.dateInput.value = `${_y}-${_m}-${_d}`;
       els.submitBtn.textContent = '保存';
       renderModalCategories();
       els.modalOverlay.classList.add('open');
