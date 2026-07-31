@@ -242,7 +242,22 @@
       padding: 14px 8px;
       text-align: center;
       box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
+    .summary-card:active {
+      transform: scale(0.97);
+    }
+    .summary-card.active {
+      border-color: var(--primary-color, #ff6b9d);
+      box-shadow: 0 4px 12px rgba(255, 107, 157, 0.25);
+    }
+    .summary-card.active[data-chart-type="income"]  { border-color: #4caf50; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25); }
+    .summary-card.active[data-chart-type="expense"] { border-color: #ff6b6b; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.25); }
+    .summary-card.active[data-chart-type="balance"] { border-color: #42a5f5; box-shadow: 0 4px 12px rgba(66, 165, 245, 0.25); }
 
     .summary-label {
       font-size: 12px;
@@ -850,16 +865,16 @@
       </div>
 
       <!-- 汇总 -->
-      <div class="summary-cards">
-        <div class="summary-card">
+      <div class="summary-cards" id="summaryCards">
+        <div class="summary-card" data-chart-type="income">
           <div class="summary-label">收入</div>
           <div class="summary-value income" id="incomeTotal">¥0.00</div>
         </div>
-        <div class="summary-card">
+        <div class="summary-card" data-chart-type="expense">
           <div class="summary-label">支出</div>
           <div class="summary-value expense" id="expenseTotal">¥0.00</div>
         </div>
-        <div class="summary-card">
+        <div class="summary-card" data-chart-type="balance">
           <div class="summary-label">结余</div>
           <div class="summary-value balance" id="balanceTotal">¥0.00</div>
         </div>
@@ -868,13 +883,13 @@
       <!-- 图表 -->
       <div class="card">
         <div class="card-title">
-          <span>支出构成</span>
+          <span id="chartTitle">支出构成</span>
         </div>
         <div class="chart-wrapper">
           <canvas id="expenseChart"></canvas>
           <div class="empty-state" id="chartEmpty" style="display: none;">
             <div class="empty-state-icon">📊</div>
-            <div>本月暂无支出记录</div>
+            <div id="chartEmptyText">本月暂无支出记录</div>
           </div>
         </div>
       </div>
@@ -1041,6 +1056,8 @@
     let editingId = null;
     // 筛选状态（最近记录）
     let filterState = { category: '', type: '', dateFrom: '', dateTo: '' };
+    // 图表显示类型：'income' / 'expense'
+    let chartType = 'expense';
     let chartInstance = null;
 
     // ==================== DOM 元素 ====================
@@ -1076,6 +1093,9 @@
       toast: document.getElementById('toast'),
       chartCanvas: document.getElementById('expenseChart'),
       chartEmpty: document.getElementById('chartEmpty'),
+      chartEmptyText: document.getElementById('chartEmptyText'),
+      chartTitle: document.getElementById('chartTitle'),
+      summaryCards: document.getElementById('summaryCards'),
     };
 
     // ==================== 初始化 ====================
@@ -1084,6 +1104,10 @@
       setupEventListeners();
       renderCategories();
       renderAll();
+      // 初始化默认 active 卡片
+      els.summaryCards.querySelectorAll('.summary-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.chartType === chartType);
+      });
     }
 
 
@@ -1256,9 +1280,13 @@
 
     function renderChart() {
       const monthData = getMonthTransactions();
-      const expenseData = monthData.filter(t => t.type === 'expense');
+      const data = monthData.filter(t => t.type === chartType);
 
-      if (expenseData.length === 0) {
+      // 标题与空状态文案
+      els.chartTitle.textContent = chartType === 'income' ? '收入构成' : '支出构成';
+      els.chartEmptyText.textContent = chartType === 'income' ? '本月暂无收入记录' : '本月暂无支出记录';
+
+      if (data.length === 0) {
         els.chartCanvas.style.display = 'none';
         els.chartEmpty.style.display = 'block';
         if (chartInstance) {
@@ -1271,16 +1299,31 @@
       els.chartCanvas.style.display = 'block';
       els.chartEmpty.style.display = 'none';
 
+      // 汇总各类金额
       const totals = {};
-      expenseData.forEach(t => {
+      data.forEach(t => {
         totals[t.category] = (totals[t.category] || 0) + t.amount;
       });
 
-      const labels = Object.keys(totals);
-      const data = Object.values(totals);
+      // 按金额降序
+      const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+      const labels = entries.map(e => e[0]);
+      const values = entries.map(e => e[1]);
+      const grandTotal = values.reduce((s, v) => s + v, 0);
+
+      // 颜色池
+      const allCats = chartType === 'income'
+        ? [...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES]
+        : [...CATEGORIES, ...LEGACY_CATEGORIES];
       const bgColors = labels.map(name => {
-        const cat = [...CATEGORIES, ...LEGACY_CATEGORIES].find(c => c.name === name);
+        const cat = allCats.find(c => c.name === name);
         return cat ? cat.chartColor : '#999';
+      });
+
+      // 生成图例标签：类别  ¥金额  (占比%)
+      const legendLabels = labels.map((name, i) => {
+        const pct = grandTotal > 0 ? (values[i] / grandTotal * 100) : 0;
+        return `${name}  ¥${values[i].toFixed(2)}  (${pct.toFixed(1)}%)`;
       });
 
       if (chartInstance) {
@@ -1290,9 +1333,9 @@
       chartInstance = new Chart(els.chartCanvas, {
         type: 'doughnut',
         data: {
-          labels,
+          labels: legendLabels,
           datasets: [{
-            data,
+            data: values,
             backgroundColor: bgColors,
             borderWidth: 0,
             hoverOffset: 8,
@@ -1308,18 +1351,45 @@
               labels: {
                 usePointStyle: true,
                 pointStyle: 'circle',
-                padding: 16,
-                font: { size: 12 }
+                padding: 12,
+                font: { size: 11 },
+                boxWidth: 10,
+                generateLabels(chart) {
+                  // 保留 Chart.js 默认图例生成，再附加占比
+                  const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                  return base.map((b, i) => ({
+                    ...b,
+                    text: legendLabels[i] || b.text,
+                  }));
+                }
               }
             },
             tooltip: {
               callbacks: {
-                label: (ctx) => `${ctx.label}: ¥${ctx.raw.toFixed(2)}`
+                title: (items) => {
+                  if (!items.length) return '';
+                  const idx = items[0].dataIndex;
+                  return labels[idx];
+                },
+                label: (ctx) => {
+                  const pct = grandTotal > 0 ? (ctx.raw / grandTotal * 100) : 0;
+                  return `¥${ctx.raw.toFixed(2)}  ·  占比 ${pct.toFixed(1)}%`;
+                }
               }
             }
           }
         }
       });
+    }
+
+    function setChartType(type) {
+      if (type !== 'income' && type !== 'expense') return;
+      chartType = type;
+      // 更新汇总卡片 active 状态（结余卡片单独标记）
+      els.summaryCards.querySelectorAll('.summary-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.chartType === type);
+      });
+      renderChart();
     }
 
     function renderRecords() {
@@ -1638,6 +1708,14 @@
         els.filterDateFrom.value = '';
         els.filterDateTo.value = '';
         renderRecords();
+      });
+
+      // 汇总卡片切换图表类型
+      els.summaryCards.querySelectorAll('.summary-card').forEach(card => {
+        const t = card.dataset.chartType;
+        if (t === 'income' || t === 'expense') {
+          card.addEventListener('click', () => setChartType(t));
+        }
       });
     }
 
