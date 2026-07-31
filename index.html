@@ -1271,6 +1271,25 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- 日历选择器弹窗（淡紫系） -->
+  <div class="cal-overlay" id="calOverlay">
+    <div class="cal-panel">
+      <div class="cal-header">
+        <button id="calPrevMonth">‹</button>
+        <span class="cal-title" id="calTitle">2026年7月</span>
+        <button id="calNextMonth">›</button>
+        <button class="cal-close" id="calClose" aria-label="关闭">×</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-footer">
+        <button class="cal-today-btn" id="calTodayBtn">回到今天</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ==================== 数据配置 ====================
     const TWEMOJI_SVGS = {
@@ -1399,6 +1418,11 @@
       chartBreakdown: document.getElementById('chartBreakdown'),
       summaryCards: document.getElementById('summaryCards'),
     };
+
+    // 校验关键 DOM 引用（含日历）——若为 null 说明 HTML 顺序错误
+    ['calOverlay','calGrid','calTitle','calPrev','calNext','calClose','calTodayBtn','dateText'].forEach(k => {
+      if (!els[k]) console.error('[init] els.' + k + ' 为 null，日历可能不可用');
+    });
 
     // ==================== 初始化 ====================
     function init() {
@@ -2234,24 +2258,5 @@
       });
     }
   </script>
-
-  <!-- 日历选择器弹窗 -->
-  <div class="cal-overlay" id="calOverlay">
-    <div class="cal-panel">
-      <div class="cal-header">
-        <button id="calPrevMonth">‹</button>
-        <span class="cal-title" id="calTitle">2026年7月</span>
-        <button id="calNextMonth">›</button>
-        <button class="cal-close" id="calClose" aria-label="关闭">×</button>
-      </div>
-      <div class="cal-weekdays">
-        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
-      </div>
-      <div class="cal-grid" id="calGrid"></div>
-      <div class="cal-footer">
-        <button class="cal-today-btn" id="calTodayBtn">回到今天</button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
