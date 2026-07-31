@@ -48,6 +48,12 @@
       --shadow: 0 8px 24px rgba(255, 107, 157, 0.12);
       --radius: 22px;
       --radius-sm: 14px;
+      /* 日历选择器（淡紫系） */
+      --cal-bg: #F3E5F5;
+      --cal-cell-hover: #E1BEE7;
+      --cal-active: #AB47BC;
+      --cal-today: #CE93D8;
+      --cal-dot: #7B1FA2;
     }
 
     * {
@@ -230,6 +236,16 @@
       color: var(--text-main);
       flex: 1;
       text-align: center;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.18s, color 0.18s;
+    }
+
+    .month-text:hover {
+      background: var(--primary-bg);
+      color: var(--primary);
     }
 
     .view-toggle {
@@ -849,6 +865,192 @@
       opacity: 1;
     }
 
+    /* ============== 日历选择器弹窗（淡紫系） ============== */
+    .cal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .cal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .cal-panel {
+      background: #fff;
+      border-radius: var(--radius);
+      border: 2px solid var(--cal-bg);
+      width: 100%;
+      max-width: 380px;
+      padding: 18px 18px 14px;
+      box-shadow: 0 20px 50px rgba(123,31,162,0.25);
+      transform: scale(0.92);
+      transition: transform 0.22s;
+    }
+
+    .cal-overlay.open .cal-panel {
+      transform: scale(1);
+    }
+
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+
+    .cal-header > button:not(.cal-close) {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--cal-bg);
+      color: var(--cal-active);
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--cal-active);
+    }
+
+    .cal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 22px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 50%;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .cal-close:hover {
+      background: var(--cal-bg);
+      color: var(--cal-active);
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .cal-weekdays span {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cal-active);
+      opacity: 0.65;
+      padding: 4px 0;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .cal-cell {
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, transform 0.1s;
+      position: relative;
+      min-height: 38px;
+    }
+
+    .cal-cell:not(.cal-other-month):hover {
+      background: var(--cal-cell-hover);
+      transform: scale(1.05);
+    }
+
+    .cal-cell.cal-today-cell:not(.cal-active) {
+      background: var(--cal-bg);
+      color: var(--cal-active);
+      font-weight: 700;
+    }
+
+    .cal-cell.cal-active {
+      background: var(--cal-active);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(171,71,188,0.4);
+    }
+
+    .cal-cell.cal-other-month {
+      color: #d0d0d0;
+      cursor: default;
+    }
+
+    .cal-day {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .cal-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cal-dot);
+      margin-top: 3px;
+    }
+
+    .cal-cell.cal-active .cal-dot {
+      background: #fff;
+    }
+
+    .cal-footer {
+      display: flex;
+      justify-content: center;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--cal-bg);
+    }
+
+    .cal-today-btn {
+      background: var(--cal-bg);
+      color: var(--cal-active);
+      border: none;
+      padding: 8px 22px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s;
+    }
+
+    .cal-today-btn:hover {
+      background: var(--cal-cell-hover);
+    }
+
     /* 桌面端适配 */
     @media (min-width: 900px) {
       .app-container {
@@ -1157,6 +1359,16 @@
       monthText: document.getElementById('dateText'),
       prevMonth: document.getElementById('prevDate'),
       nextMonth: document.getElementById('nextDate'),
+      // 日历选择器
+      dateText: document.getElementById('dateText'),
+      calOverlay: document.getElementById('calOverlay'),
+      calPanel: document.querySelector('.cal-panel'),
+      calTitle: document.getElementById('calTitle'),
+      calPrev: document.getElementById('calPrevMonth'),
+      calNext: document.getElementById('calNextMonth'),
+      calClose: document.getElementById('calClose'),
+      calGrid: document.getElementById('calGrid'),
+      calTodayBtn: document.getElementById('calTodayBtn'),
       incomeTotal: document.getElementById('incomeTotal'),
       expenseTotal: document.getElementById('expenseTotal'),
       balanceTotal: document.getElementById('balanceTotal'),
@@ -1329,6 +1541,81 @@
       return transactions.filter(t => {
         const dt = new Date(t.date);
         return dt.getFullYear() === y && dt.getMonth() === m;
+      });
+    }
+
+    // ==================== 日历选择器 ====================
+    let calViewDate = new Date(2026, 6, 1);
+
+    function openCalendar() {
+      calViewDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      renderCalendar();
+      els.calOverlay.classList.add('open');
+    }
+
+    function closeCalendar() {
+      els.calOverlay.classList.remove('open');
+    }
+
+    function renderCalendar() {
+      const y = calViewDate.getFullYear();
+      const m = calViewDate.getMonth();
+      els.calTitle.textContent = `${y}年${m + 1}月`;
+
+      const startWeekday = new Date(y, m, 1).getDay();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === y && today.getMonth() === m;
+      const todayDate = today.getDate();
+
+      // 收集当月有记录的日期
+      const datesWithRecords = new Set();
+      transactions.forEach(t => {
+        const dt = new Date(t.date);
+        if (dt.getFullYear() === y && dt.getMonth() === m) {
+          datesWithRecords.add(dt.getDate());
+        }
+      });
+
+      const cells = [];
+      const prevMonthDays = new Date(y, m, 0).getDate();
+      for (let i = startWeekday - 1; i >= 0; i--) {
+        cells.push({ day: prevMonthDays - i, otherMonth: true });
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        cells.push({
+          day: d,
+          isToday: isCurrentMonth && d === todayDate,
+          isSelected: currentDate.getFullYear() === y && currentDate.getMonth() === m && currentDate.getDate() === d,
+          hasRecord: datesWithRecords.has(d)
+        });
+      }
+      while (cells.length % 7 !== 0) {
+        cells.push({ day: cells.length - daysInMonth - startWeekday + 1, otherMonth: true });
+      }
+
+      els.calGrid.innerHTML = cells.map(c => {
+        if (c.otherMonth) {
+          return `<div class="cal-cell cal-other-month"><span class="cal-day">${c.day}</span></div>`;
+        }
+        const classes = ['cal-cell'];
+        if (c.isToday) classes.push('cal-today-cell');
+        if (c.isSelected) classes.push('cal-active');
+        return `
+          <div class="${classes.join(' ')}" data-day="${c.day}">
+            <span class="cal-day">${c.day}</span>
+            ${c.hasRecord ? '<div class="cal-dot"></div>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      els.calGrid.querySelectorAll('.cal-cell:not(.cal-other-month)').forEach(cell => {
+        cell.addEventListener('click', () => {
+          const day = parseInt(cell.dataset.day, 10);
+          currentDate = new Date(y, m, day, 12, 0, 0);
+          renderAll();
+          closeCalendar();
+        });
       });
     }
 
@@ -1838,6 +2125,35 @@
 
       // 类型切换已移除（支出和收入分类分别由两块网格常驻展示）
 
+      // 点击日期文本 → 弹出日历选择器
+      els.dateText.addEventListener('click', openCalendar);
+
+      // 日历翻月
+      els.calPrev.addEventListener('click', () => {
+        calViewDate.setMonth(calViewDate.getMonth() - 1);
+        renderCalendar();
+      });
+      els.calNext.addEventListener('click', () => {
+        calViewDate.setMonth(calViewDate.getMonth() + 1);
+        renderCalendar();
+      });
+
+      // 日历关闭
+      els.calClose.addEventListener('click', closeCalendar);
+      els.calOverlay.addEventListener('click', (e) => {
+        if (e.target === els.calOverlay) closeCalendar();
+      });
+
+      // 回到今天
+      els.calTodayBtn.addEventListener('click', () => {
+        const t = new Date();
+        currentDate = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 12, 0, 0);
+        calViewDate = new Date(t.getFullYear(), t.getMonth(), 1);
+        renderAll();
+        renderCalendar();
+        closeCalendar();
+      });
+
       // 支付方式
       els.paymentOptions.querySelectorAll('.payment-option').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1918,5 +2234,24 @@
       });
     }
   </script>
+
+  <!-- 日历选择器弹窗 -->
+  <div class="cal-overlay" id="calOverlay">
+    <div class="cal-panel">
+      <div class="cal-header">
+        <button id="calPrevMonth">‹</button>
+        <span class="cal-title" id="calTitle">2026年7月</span>
+        <button id="calNextMonth">›</button>
+        <button class="cal-close" id="calClose" aria-label="关闭">×</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-footer">
+        <button class="cal-today-btn" id="calTodayBtn">回到今天</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
