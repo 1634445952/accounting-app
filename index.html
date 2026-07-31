@@ -657,6 +657,79 @@
       cursor: pointer;
     }
 
+    /* 筛选条 */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 8px 0 4px;
+    }
+    .filter-select, .filter-date {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border: 1px solid #f0d4dc;
+      border-radius: 8px;
+      background: #fff;
+      color: #333;
+      font-size: 13px;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .filter-select:focus, .filter-date:focus {
+      border-color: #ff6b9d;
+    }
+    .filter-sep {
+      color: #999;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .filter-reset {
+      padding: 6px 10px;
+      border: 1px solid #f0d4dc;
+      border-radius: 8px;
+      background: #fff;
+      color: #ff6b9d;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .filter-reset:active {
+      background: #ffeef4;
+    }
+    .filter-summary {
+      padding: 10px 12px;
+      margin: 8px 0 4px;
+      background: linear-gradient(135deg, #fff5f8 0%, #ffe4ec 100%);
+      border-radius: 10px;
+      font-size: 13px;
+      color: #555;
+      display: none;
+    }
+    .filter-summary.active {
+      display: block;
+    }
+    .filter-summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-summary-count {
+      color: #888;
+      font-size: 12px;
+    }
+    .filter-summary-amount {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .filter-summary-amount.expense { color: #ff6b6b; }
+    .filter-summary-amount.income  { color: #4caf50; }
+    .filter-summary-amount.mixed   { color: #ff6b9d; }
+
     /* Toast */
     .toast {
       position: fixed;
@@ -826,8 +899,25 @@
       <div class="card">
         <div class="card-title">
           <span>最近记录</span>
-          <button class="clear-btn" style="width: auto; margin: 0; margin-right: 8px; color: #ff6b9d; font-weight: 700;" id="importWxBtn">📥 导入微信账单</button><button class="clear-btn" style="width: auto; margin: 0;" id="clearAllBtn">清空本月</button>
+          <button class="clear-btn" style="width: auto; margin: 0; color: #ff6b9d; font-weight: 700;" id="importWxBtn">📥 导入微信账单</button>
         </div>
+        <!-- 筛选条件 -->
+        <div class="filter-bar" id="filterBar">
+          <select id="filterCategory" class="filter-select">
+            <option value="">全部分类</option>
+          </select>
+          <select id="filterType" class="filter-select" style="max-width: 84px;">
+            <option value="">收支</option>
+            <option value="expense">支出</option>
+            <option value="income">收入</option>
+          </select>
+          <input type="date" id="filterDateFrom" class="filter-date" title="开始日期">
+          <span class="filter-sep">~</span>
+          <input type="date" id="filterDateTo" class="filter-date" title="结束日期">
+          <button id="filterReset" class="filter-reset" title="重置筛选">重置</button>
+        </div>
+        <!-- 汇总条 -->
+        <div class="filter-summary" id="filterSummary"></div>
         <div class="record-list" id="recordList"></div>
       </div>
     </main>
@@ -949,6 +1039,8 @@
     let currentCategory = null;
     let currentPayment = '微信支付';
     let editingId = null;
+    // 筛选状态（最近记录）
+    let filterState = { category: '', type: '', dateFrom: '', dateTo: '' };
     let chartInstance = null;
 
     // ==================== DOM 元素 ====================
@@ -974,8 +1066,13 @@
       submitBtn: document.getElementById('submitBtn'),
       paymentOptions: document.getElementById('paymentOptions'),
       modalCategoryGrid: document.getElementById('modalCategoryGrid'),
-      clearAllBtn: document.getElementById('clearAllBtn'),
       importWxBtn: document.getElementById('importWxBtn'),
+      filterCategory: document.getElementById('filterCategory'),
+      filterType: document.getElementById('filterType'),
+      filterDateFrom: document.getElementById('filterDateFrom'),
+      filterDateTo: document.getElementById('filterDateTo'),
+      filterReset: document.getElementById('filterReset'),
+      filterSummary: document.getElementById('filterSummary'),
       toast: document.getElementById('toast'),
       chartCanvas: document.getElementById('expenseChart'),
       chartEmpty: document.getElementById('chartEmpty'),
@@ -1076,6 +1173,7 @@
       updateMonthText();
       renderSummary();
       renderChart();
+      refreshFilterCategoryOptions();
       renderRecords();
     }
 
@@ -1225,19 +1323,22 @@
     }
 
     function renderRecords() {
-      const monthData = getMonthTransactions().sort((a, b) => new Date(b.date) - new Date(a.date));
+      const monthData = getMonthTransactions();
+      const filtered = applyFilters(monthData).sort((a, b) => new Date(b.date) - new Date(a.date));
+      renderFilterSummary(filtered, monthData);
 
-      if (monthData.length === 0) {
+      if (filtered.length === 0) {
+        const isFiltering = isFilterActive();
         els.recordList.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-icon">📝</div>
-            <div>本月还没有记录，点击上方分类开始记账吧</div>
+            <div class="empty-state-icon">${isFiltering ? '🔍' : '📝'}</div>
+            <div>${isFiltering ? '当前筛选条件下没有记录' : '本月还没有记录，点击上方分类开始记账吧'}</div>
           </div>
         `;
         return;
       }
 
-      els.recordList.innerHTML = monthData.map(t => {
+      els.recordList.innerHTML = filtered.map(t => {
         const catList = t.type === 'income'
           ? [...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES]
           : [...CATEGORIES, ...LEGACY_CATEGORIES];
@@ -1276,6 +1377,67 @@
           editTransaction(parseInt(item.dataset.id));
         });
       });
+    }
+
+    function isFilterActive() {
+      return !!(filterState.category || filterState.type || filterState.dateFrom || filterState.dateTo);
+    }
+
+    function applyFilters(list) {
+      return list.filter(t => {
+        if (filterState.category && t.category !== filterState.category) return false;
+        if (filterState.type && t.type !== filterState.type) return false;
+        if (filterState.dateFrom && t.date < filterState.dateFrom) return false;
+        if (filterState.dateTo && t.date > filterState.dateTo) return false;
+        return true;
+      });
+    }
+
+    function renderFilterSummary(filtered, all) {
+      if (!isFilterActive()) {
+        els.filterSummary.classList.remove('active');
+        els.filterSummary.innerHTML = '';
+        return;
+      }
+      const totalIn = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const totalOut = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      let amountHtml, amountClass;
+      if (filterState.type === 'income') {
+        amountHtml = `+¥${totalIn.toFixed(2)}`;
+        amountClass = 'income';
+      } else if (filterState.type === 'expense') {
+        amountHtml = `-¥${totalOut.toFixed(2)}`;
+        amountClass = 'expense';
+      } else {
+        amountHtml = `收 +¥${totalIn.toFixed(2)} / 支 -¥${totalOut.toFixed(2)}`;
+        amountClass = 'mixed';
+      }
+      els.filterSummary.innerHTML = `
+        <div class="filter-summary-row">
+          <span class="filter-summary-count">筛选到 <b>${filtered.length}</b> / ${all.length} 条记录</span>
+          <span class="filter-summary-amount ${amountClass}">${amountHtml}</span>
+        </div>
+      `;
+      els.filterSummary.classList.add('active');
+    }
+
+    function refreshFilterCategoryOptions() {
+      // 用当月记录中出现过的所有分类（含 LEGACY）作为下拉选项
+      const monthData = getMonthTransactions();
+      const names = [...new Set(monthData.map(t => t.category))];
+      const allCats = [...CATEGORIES, ...LEGACY_CATEGORIES, ...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES];
+      const opts = ['<option value="">全部分类</option>'];
+      names.sort((a, b) => {
+        const aIn = allCats.findIndex(c => c.name === a);
+        const bIn = allCats.findIndex(c => c.name === b);
+        return (aIn < 0 ? 999 : aIn) - (bIn < 0 ? 999 : bIn);
+      });
+      names.forEach(n => {
+        const cat = allCats.find(c => c.name === n);
+        const icon = cat ? TWEMOJI_SVGS[cat.svgCode] || '' : '';
+        opts.push(`<option value="${n}" ${filterState.category === n ? 'selected' : ''}>${icon} ${n}</option>`);
+      });
+      els.filterCategory.innerHTML = opts.join('');
     }
 
     function editTransaction(id) {
@@ -1430,11 +1592,35 @@
         if (e.key === 'Enter') submitTransaction();
       });
 
-      // 清空
-      els.clearAllBtn.addEventListener('click', clearMonthData);
-
+      // 清空本月按钮已移除（防误触）。如确需清空，请在浏览器中清除 localStorage。
       // 导入微信账单
       els.importWxBtn.addEventListener('click', importWechatData);
+
+      // 筛选条件
+      els.filterCategory.addEventListener('change', () => {
+        filterState.category = els.filterCategory.value;
+        renderRecords();
+      });
+      els.filterType.addEventListener('change', () => {
+        filterState.type = els.filterType.value;
+        renderRecords();
+      });
+      els.filterDateFrom.addEventListener('change', () => {
+        filterState.dateFrom = els.filterDateFrom.value;
+        renderRecords();
+      });
+      els.filterDateTo.addEventListener('change', () => {
+        filterState.dateTo = els.filterDateTo.value;
+        renderRecords();
+      });
+      els.filterReset.addEventListener('click', () => {
+        filterState = { category: '', type: '', dateFrom: '', dateTo: '' };
+        els.filterCategory.value = '';
+        els.filterType.value = '';
+        els.filterDateFrom.value = '';
+        els.filterDateTo.value = '';
+        renderRecords();
+      });
     }
 
     // ==================== 工具函数 ====================
