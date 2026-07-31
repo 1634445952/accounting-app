@@ -1053,17 +1053,17 @@
 };
 
     const CATEGORIES = [
-    { name: '餐饮', color: '#FFF3E0', chartColor: '#FF9800', svgCode: '1f35a' },
+    { name: '吃喝', color: '#FFF3E0', chartColor: '#FF9800', svgCode: '1f35a' },
+    { name: '日用品', color: '#E0F7FA', chartColor: '#26C6DA', svgCode: '1faa5' },
+    { name: '小东小西', color: '#FFE0B2', chartColor: '#FB8C00', svgCode: '1f4e6' },
     { name: '娱乐', color: '#FFEBEE', chartColor: '#EF5350', svgCode: '1f3a1' },
+    { name: '交通', color: '#E8EAF6', chartColor: '#5C6BC0', svgCode: '1f68c' },
+    { name: '去昆明', color: '#E3F2FD', chartColor: '#42A5F5', svgCode: '2708' },
     { name: '服饰', color: '#ECEFF1', chartColor: '#78909C', svgCode: '1f455' },
     { name: '礼物', color: '#FFF8E1', chartColor: '#FFCA28', svgCode: '1f381' },
-    { name: '医疗', color: '#FBE9E7', chartColor: '#FF7043', svgCode: '1f48a' },
-    { name: '学习', color: '#E0F2F1', chartColor: '#26A69A', svgCode: '1f4da' },
-    { name: '去昆明', color: '#E3F2FD', chartColor: '#42A5F5', svgCode: '2708' },
-    { name: '日用品', color: '#E0F7FA', chartColor: '#26C6DA', svgCode: '1faa5' },
     { name: '通讯会员', color: '#F3E5F5', chartColor: '#AB47BC', svgCode: '1f451' },
-    { name: '小东小西', color: '#FFE0B2', chartColor: '#FB8C00', svgCode: '1f4e6' },
-    { name: '交通', color: '#E8EAF6', chartColor: '#5C6BC0', svgCode: '1f68c' }
+    { name: '医疗', color: '#FBE9E7', chartColor: '#FF7043', svgCode: '1f48a' },
+    { name: '学习', color: '#E0F2F1', chartColor: '#26A69A', svgCode: '1f4da' }
   ];
 
     const INCOME_CATEGORIES = [
@@ -1079,6 +1079,7 @@
     ];
 
     const LEGACY_CATEGORIES = [
+    { name: '餐饮', color: '#FFF3E0', chartColor: '#FF9800', svgCode: '1f35a' },
     { name: '零食', color: '#FCE4EC', chartColor: '#F06292', svgCode: '1f36a' },
     { name: '水电费', color: '#E3F2FD', chartColor: '#42A5F5', svgCode: '1f4a1' },
     { name: '通讯费', color: '#F3E5F5', chartColor: '#AB47BC', svgCode: '1f4f1' },
@@ -1166,8 +1167,10 @@
       const existingIds = new Set(transactions.map(t => t.id));
       let added = 0;
       WECHAT_IMPORT_DATA.forEach(t => {
-        if (!existingIds.has(t.id)) {
-          transactions.push(t);
+        // 旧数据兼容：把"餐饮"迁移为"吃喝"
+        const normalized = t.category === '餐饮' ? { ...t, category: '吃喝' } : t;
+        if (!existingIds.has(normalized.id)) {
+          transactions.push(normalized);
           added++;
         }
       });
@@ -1188,6 +1191,7 @@
       if (raw) {
         try {
           transactions = JSON.parse(raw);
+          migrateCategories();
         } catch (e) {
           transactions = [];
         }
@@ -1197,13 +1201,26 @@
       }
     }
 
+    // 把旧分类名迁移到新分类名（如「餐饮」→「吃喝」）
+    function migrateCategories() {
+      const RENAMES = { '餐饮': '吃喝' };
+      let changed = false;
+      transactions.forEach(t => {
+        if (RENAMES[t.category]) {
+          t.category = RENAMES[t.category];
+          changed = true;
+        }
+      });
+      if (changed) saveData();
+    }
+
     function generateSampleData() {
       const sample = [];
       const baseDate = new Date(2026, 6, 1);
       const records = [
-        { day: 1, category: '餐饮', amount: 35.00, payment: '微信支付', note: '午餐' },
+        { day: 1, category: '吃喝', amount: 35.00, payment: '微信支付', note: '午餐' },
         { day: 2, category: '零食', amount: 18.50, payment: '支付宝', note: '奶茶' },
-        { day: 3, category: '餐饮', amount: 42.00, payment: '微信支付', note: '晚餐' },
+        { day: 3, category: '吃喝', amount: 42.00, payment: '微信支付', note: '晚餐' },
         { day: 5, category: '蔬菜', amount: 26.30, payment: '现金', note: '超市买菜' },
         { day: 7, category: '交通', amount: 6.00, payment: '微信支付', note: '地铁' },
         { day: 10, category: '通讯费', amount: 59.00, payment: '支付宝', note: '话费' },
