@@ -923,10 +923,13 @@
     const INCOME_CATEGORIES = [
       { name: '工资', color: '#E8F5E9', chartColor: '#4CAF50', svgCode: '1f4b0' },
       { name: '红包', color: '#FFEBEE', chartColor: '#EF5350', svgCode: '1f9e7' },
+      { name: '其他', color: '#F3E5F5', chartColor: '#9C27B0', svgCode: '1f4b3' },
+    ];
+
+    const LEGACY_INCOME_CATEGORIES = [
       { name: '理财', color: '#E3F2FD', chartColor: '#2196F3', svgCode: '1f4c8' },
       { name: '兼职', color: '#FFF3E0', chartColor: '#FF9800', svgCode: '1f4bb' },
       { name: '奖金', color: '#FFF8E1', chartColor: '#FFC107', svgCode: '1f3c6' },
-      { name: '其他', color: '#F3E5F5', chartColor: '#9C27B0', svgCode: '1f4b3' },
     ];
 
     const LEGACY_CATEGORIES = [
@@ -1218,7 +1221,9 @@
       }
 
       els.recordList.innerHTML = monthData.map(t => {
-        const catList = t.type === 'income' ? INCOME_CATEGORIES : CATEGORIES;
+        const catList = t.type === 'income'
+          ? [...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES]
+          : [...CATEGORIES, ...LEGACY_CATEGORIES];
         const cat = catList.find(c => c.name === t.category) || { svgCode: '1f4e6', color: '#eee' };
         const sign = t.type === 'income' ? '+' : '-';
         const colorClass = t.type === 'income' ? 'income' : 'expense';
