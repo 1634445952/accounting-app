@@ -1440,9 +1440,7 @@
 
       const opts = ['<option value="">全部分类</option>'];
       names.forEach(n => {
-        const cat = pool.find(c => c.name === n);
-        const icon = cat ? TWEMOJI_SVGS[cat.svgCode] || '' : '';
-        opts.push(`<option value="${n}" ${filterState.category === n ? 'selected' : ''}>${icon} ${n}</option>`);
+        opts.push(`<option value="${n}" ${filterState.category === n ? 'selected' : ''}>${n}</option>`);
       });
       els.filterCategory.innerHTML = opts.join('');
 
