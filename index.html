@@ -780,7 +780,7 @@
       <div class="card">
         <div class="card-title">
           <span>最近记录</span>
-          <button class="clear-btn" style="width: auto; margin: 0;" id="clearAllBtn">清空本月</button>
+          <button class="clear-btn" style="width: auto; margin: 0; margin-right: 8px; color: #ff6b9d; font-weight: 700;" id="importWxBtn">📥 导入微信账单</button><button class="clear-btn" style="width: auto; margin: 0;" id="clearAllBtn">清空本月</button>
         </div>
         <div class="record-list" id="recordList"></div>
       </div>
@@ -924,6 +924,7 @@
       submitBtn: document.getElementById('submitBtn'),
       paymentOptions: document.getElementById('paymentOptions'),
       clearAllBtn: document.getElementById('clearAllBtn'),
+      importWxBtn: document.getElementById('importWxBtn'),
       toast: document.getElementById('toast'),
       chartCanvas: document.getElementById('expenseChart'),
       chartEmpty: document.getElementById('chartEmpty'),
@@ -935,6 +936,36 @@
       setupEventListeners();
       renderCategories();
       renderAll();
+    }
+
+
+    // 微信账单导入数据（2026年6月30日 - 7月31日，共50笔）
+    const WECHAT_IMPORT_DATA = [{"id": 1785465311000, "date": "2026-07-31", "type": "expense", "category": "通讯会员", "amount": 9.9, "payment": "微信支付", "note": "QQ音乐 | 豪华绿钻(1634445952购买)"}, {"id": 1785417977001, "date": "2026-07-30", "type": "expense", "category": "日用品", "amount": 10.9, "payment": "微信支付", "note": "景洪勐龙顺清超市 | 景洪勐龙顺清超市(勐龙店)"}, {"id": 1785393802002, "date": "2026-07-30", "type": "expense", "category": "小东小西", "amount": 27.0, "payment": "微信支付", "note": "shui | 收款方备注:二维码收款"}, {"id": 1785393492003, "date": "2026-07-30", "type": "expense", "category": "小东小西", "amount": 10.0, "payment": "微信支付", "note": "👠💋💄👒 | 收款方备注:二维码收款"}, {"id": 1785334750004, "date": "2026-07-29", "type": "expense", "category": "去昆明", "amount": 10.0, "payment": "微信支付", "note": "北京融乐时代智慧科技有限公司 | 西双版纳融创茂_停车费_云KD21668"}, {"id": 1785333794005, "date": "2026-07-29", "type": "expense", "category": "日用品", "amount": 503.6, "payment": "微信支付", "note": "广州市黄埔区启衡贸易商行 | 一店西双版纳融创"}, {"id": 1785326118006, "date": "2026-07-29", "type": "expense", "category": "小东小西", "amount": 12.98, "payment": "微信支付", "note": "乐摩吧 | 乐摩吧放松腰背30分钟按摩订单"}, {"id": 1785322536007, "date": "2026-07-29", "type": "expense", "category": "餐饮", "amount": 84.4, "payment": "微信支付", "note": "云普灶餐饮店（个体工商户） | 云火灶订单"}, {"id": 1785322517008, "date": "2026-07-29", "type": "income", "category": "其他", "amount": 114.4, "payment": "微信支付", "note": "云普灶餐饮店（个体工商户） | 云普灶餐饮店（个体工商户）"}, {"id": 1785314133009, "date": "2026-07-29", "type": "expense", "category": "日用品", "amount": 4.0, "payment": "微信支付", "note": "艳萍百货 | 收款方备注:二维码收款"}, {"id": 1785311644010, "date": "2026-07-29", "type": "expense", "category": "小东小西", "amount": 3.0, "payment": "微信支付", "note": "永鑫图文2号 | 收款方备注:二维码收款"}, {"id": 1785287821011, "date": "2026-07-29", "type": "expense", "category": "餐饮", "amount": 14.0, "payment": "微信支付", "note": "杨姐早点店 | 杨姐早点店"}, {"id": 1785125492012, "date": "2026-07-27", "type": "expense", "category": "学习", "amount": 24.0, "payment": "微信支付", "note": "晨光文具 | 收款方备注:二维码收款"}, {"id": 1785061034013, "date": "2026-07-26", "type": "expense", "category": "小东小西", "amount": 15.0, "payment": "微信支付", "note": "玉外 | 收款方备注:二维码收款"}, {"id": 1784958975014, "date": "2026-07-25", "type": "income", "category": "其他", "amount": 170.0, "payment": "微信支付", "note": "BTR、Nikaoli"}, {"id": 1784815737015, "date": "2026-07-23", "type": "income", "category": "其他", "amount": 50.0, "payment": "微信支付", "note": "我爹"}, {"id": 1784803483016, "date": "2026-07-23", "type": "expense", "category": "小东小西", "amount": 20.0, "payment": "微信支付", "note": "玉拉 | 收款方备注:二维码收款"}, {"id": 1784769843017, "date": "2026-07-23", "type": "expense", "category": "小东小西", "amount": 6.0, "payment": "微信支付", "note": "王太平 | 收款方备注:二维码收款"}, {"id": 1784714972018, "date": "2026-07-22", "type": "expense", "category": "小东小西", "amount": 10.0, "payment": "微信支付", "note": "人生就是一场梦 | 收款方备注:二维码收款"}, {"id": 1784714542019, "date": "2026-07-22", "type": "expense", "category": "餐饮", "amount": 10.0, "payment": "微信支付", "note": "刘姐油炸小吃 | 收款方备注:二维码收款"}, {"id": 1784678762020, "date": "2026-07-22", "type": "expense", "category": "小东小西", "amount": 6.0, "payment": "微信支付", "note": "宁雪 | 收款方备注:二维码收款"}, {"id": 1784459939021, "date": "2026-07-19", "type": "expense", "category": "日用品", "amount": 57.8, "payment": "微信支付", "note": "零食很忙 | 景洪勐龙科利百货店(个体工商户)"}, {"id": 1784424342022, "date": "2026-07-19", "type": "expense", "category": "通讯会员", "amount": 100.0, "payment": "微信支付", "note": "手机充值 | 100元手机话费-19236911085"}, {"id": 1784371563023, "date": "2026-07-18", "type": "income", "category": "其他", "amount": 2000.0, "payment": "微信支付", "note": "我爹 (苏涛) | 转账备注:微信转账"}, {"id": 1784366054024, "date": "2026-07-18", "type": "income", "category": "其他", "amount": 78.0, "payment": "微信支付", "note": "BTR、Nikaoli"}, {"id": 1784359116025, "date": "2026-07-18", "type": "expense", "category": "餐饮", "amount": 78.0, "payment": "微信支付", "note": "妞妞cake 二号店 | 转账备注:微信转账"}, {"id": 1784350489026, "date": "2026-07-18", "type": "expense", "category": "餐饮", "amount": 125.0, "payment": "微信支付", "note": "景洪啰啰咖啡馆莎湾店 | 啰啰咖啡馆沙湾店-点餐即支付-2960763811067488278"}, {"id": 1784340558027, "date": "2026-07-18", "type": "expense", "category": "小东小西", "amount": 8.0, "payment": "微信支付", "note": "玉夯罕 | 收款方备注:二维码收款"}, {"id": 1784266866028, "date": "2026-07-17", "type": "expense", "category": "日用品", "amount": 38.8, "payment": "微信支付", "note": "天然工坊 | 竹妃竹纤维中抽纸20包（企微专享-到手38.9元）"}, {"id": 1784263980029, "date": "2026-07-17", "type": "expense", "category": "通讯会员", "amount": 50.0, "payment": "微信支付", "note": "手机充值-中国移动 | 50元手机话费-18487926588"}, {"id": 1784258320030, "date": "2026-07-17", "type": "expense", "category": "日用品", "amount": 6.0, "payment": "微信支付", "note": "家美"}, {"id": 1783988012031, "date": "2026-07-14", "type": "expense", "category": "餐饮", "amount": 7.0, "payment": "微信支付", "note": "杨姐早点店 | 杨姐早点店"}, {"id": 1783574330032, "date": "2026-07-09", "type": "expense", "category": "礼物", "amount": 32.0, "payment": "微信支付", "note": "遇见-春光里花卉 | 转账备注:微信转账"}, {"id": 1783504461033, "date": "2026-07-08", "type": "expense", "category": "餐饮", "amount": 8.0, "payment": "微信支付", "note": "刘姐油炸小吃 | 收款方备注:二维码收款"}, {"id": 1783503628034, "date": "2026-07-08", "type": "expense", "category": "日用品", "amount": 49.0, "payment": "微信支付", "note": "s0果 | 收款方备注:二维码收款"}, {"id": 1783473537035, "date": "2026-07-08", "type": "expense", "category": "小东小西", "amount": 4.0, "payment": "微信支付", "note": "宁雪 | 收款方备注:二维码收款"}, {"id": 1783322419036, "date": "2026-07-06", "type": "income", "category": "其他", "amount": 84.0, "payment": "微信支付", "note": "花巷·FlorMood | 转账备注:淘宝闪购"}, {"id": 1783322413037, "date": "2026-07-06", "type": "income", "category": "其他", "amount": 51.0, "payment": "微信支付", "note": "花巷·FlorMood | 转账备注:美团"}, {"id": 1783252917038, "date": "2026-07-05", "type": "expense", "category": "去昆明", "amount": 48.0, "payment": "微信支付", "note": "勐龙景洪（顺风车）小李15974958192 | 收款方备注:二维码收款"}, {"id": 1783244286039, "date": "2026-07-05", "type": "expense", "category": "去昆明", "amount": 2.0, "payment": "微信支付", "note": "云南空港雅仕维 | 条码支付"}, {"id": 1783239940040, "date": "2026-07-05", "type": "expense", "category": "去昆明", "amount": 44.0, "payment": "微信支付", "note": "中铁网络 | 12306消费"}, {"id": 1783235907041, "date": "2026-07-05", "type": "expense", "category": "护肤", "amount": 8.9, "payment": "微信支付", "note": "云尚花容 | 云尚花容"}, {"id": 1783163730042, "date": "2026-07-04", "type": "expense", "category": "去昆明", "amount": 4.0, "payment": "微信支付", "note": "PP停车 | 【云JNF068】在【思茅区满满-停车场】支付停车费4.00元"}, {"id": 1783128232043, "date": "2026-07-04", "type": "expense", "category": "去昆明", "amount": 48.0, "payment": "微信支付", "note": "勐龙景洪（顺风车）小李15974958192 | 收款方备注:二维码收款"}, {"id": 1783124238044, "date": "2026-07-04", "type": "expense", "category": "日用品", "amount": 7.0, "payment": "微信支付", "note": "彬彬百货店 | 收款方备注:二维码收款"}, {"id": 1783123206045, "date": "2026-07-04", "type": "expense", "category": "餐饮", "amount": 8.0, "payment": "微信支付", "note": "景傣一锅 | 收款方备注:二维码收款"}, {"id": 1783045836046, "date": "2026-07-03", "type": "expense", "category": "餐饮", "amount": 11.0, "payment": "微信支付", "note": "益禾堂 | 【POS】_西双版纳州景洪市勐龙镇店_560477_Y813018216"}, {"id": 1783045243047, "date": "2026-07-03", "type": "expense", "category": "餐饮", "amount": 22.0, "payment": "微信支付", "note": "益禾堂 | 【POS】_西双版纳州景洪市勐龙镇店_560477_Y813018216"}, {"id": 1783042588048, "date": "2026-07-03", "type": "expense", "category": "餐饮", "amount": 7.0, "payment": "微信支付", "note": "杨姐早点店 | 杨姐早点店"}, {"id": 1782780908049, "date": "2026-06-30", "type": "expense", "category": "小东小西", "amount": 4.0, "payment": "微信支付", "note": "宁雪 | 收款方备注:二维码收款"}];
+
+    function importWechatData() {
+      const existing = transactions.length;
+      if (existing > 0) {
+        if (!confirm('将导入 50 笔微信账单记录（会与现有数据合并，不会重复导入）。是否继续？')) return;
+      }
+      // 用 id 去重：只导入 id 不存在于当前 transactions 的记录
+      const existingIds = new Set(transactions.map(t => t.id));
+      let added = 0;
+      WECHAT_IMPORT_DATA.forEach(t => {
+        if (!existingIds.has(t.id)) {
+          transactions.push(t);
+          added++;
+        }
+      });
+      saveData();
+      renderAll();
+      if (added > 0) {
+        showToast(`成功导入 ${added} 笔记录`);
+        // 跳转到 2026 年 7 月
+        currentDate = new Date(2026, 6, 1);
+        renderAll();
+      } else {
+        showToast('已是最新，无新记录可导入');
+      }
     }
 
     function loadData() {
@@ -1270,6 +1301,9 @@
 
       // 清空
       els.clearAllBtn.addEventListener('click', clearMonthData);
+
+      // 导入微信账单
+      els.importWxBtn.addEventListener('click', importWechatData);
     }
 
     // ==================== 工具函数 ====================
