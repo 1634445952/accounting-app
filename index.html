@@ -589,6 +589,44 @@
       border-color: var(--primary);
     }
 
+    .modal-category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .modal-cat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px;
+      border-radius: 12px;
+      border: 2px solid #eee;
+      background: #fafafa;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .modal-cat-item.selected {
+      border-color: #ff6b9d;
+      background: #fff0f5;
+    }
+
+    .modal-cat-item .twemoji-svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .modal-cat-name {
+      font-size: 11px;
+      color: #555;
+      font-weight: 600;
+    }
+
     .submit-btn {
       width: 100%;
       padding: 16px;
@@ -804,6 +842,11 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label">分类</label>
+        <div class="modal-category-grid" id="modalCategoryGrid"></div>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">金额</label>
         <input type="number" class="amount-input" id="amountInput" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
       </div>
@@ -926,6 +969,7 @@
       noteInput: document.getElementById('noteInput'),
       submitBtn: document.getElementById('submitBtn'),
       paymentOptions: document.getElementById('paymentOptions'),
+      modalCategoryGrid: document.getElementById('modalCategoryGrid'),
       clearAllBtn: document.getElementById('clearAllBtn'),
       importWxBtn: document.getElementById('importWxBtn'),
       toast: document.getElementById('toast'),
@@ -1072,6 +1116,25 @@
       });
     }
 
+    // 渲染弹窗内的分类选择网格
+    function renderModalCategories() {
+      const list = currentType === 'expense' ? CATEGORIES : INCOME_CATEGORIES;
+      els.modalCategoryGrid.innerHTML = list.map(cat => `
+        <div class="modal-cat-item ${cat.name === currentCategory ? 'selected' : ''}" data-category="${cat.name}">
+          <div style="background: ${cat.color}; border-radius: 8px; padding: 4px; display: flex; align-items: center; justify-content: center;">${TWEMOJI_SVGS[cat.svgCode]}</div>
+          <div class="modal-cat-name">${cat.name}</div>
+        </div>
+      `).join('');
+
+      els.modalCategoryGrid.querySelectorAll('.modal-cat-item').forEach(item => {
+        item.addEventListener('click', () => {
+          currentCategory = item.dataset.category;
+          els.modalCategoryGrid.querySelectorAll('.modal-cat-item').forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+        });
+      });
+    }
+
     function renderChart() {
       const monthData = getMonthTransactions();
       const expenseData = monthData.filter(t => t.type === 'expense');
@@ -1205,6 +1268,7 @@
         tab.classList.toggle('active', tab.dataset.type === t.type);
       });
       renderCategories();
+      renderModalCategories();
 
       els.paymentOptions.querySelectorAll('.payment-option').forEach(b => {
         b.classList.toggle('active', b.dataset.payment === t.payment);
@@ -1235,6 +1299,7 @@
       els.noteInput.value = '';
       els.dateInput.value = currentDate.toISOString().split('T')[0];
       els.submitBtn.textContent = '保存';
+      renderModalCategories();
       els.modalOverlay.classList.add('open');
       setTimeout(() => els.amountInput.focus(), 100);
     }
@@ -1331,7 +1396,14 @@
           document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
           currentType = tab.dataset.type;
+          // 类型切换后，默认选第一个分类
+          const list = currentType === 'expense' ? CATEGORIES : INCOME_CATEGORIES;
+          currentCategory = list[0].name;
           renderCategories();
+          // 如果弹窗开着，同步刷新弹窗内分类网格
+          if (els.modalOverlay.classList.contains('open')) {
+            renderModalCategories();
+          }
         });
       });
 
