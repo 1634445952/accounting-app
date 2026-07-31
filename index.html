@@ -419,6 +419,16 @@
       flex-shrink: 0;
     }
 
+    .record-index {
+      width: 24px;
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 12px;
+      color: #b0b0b0;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
     .record-info {
       flex: 1;
       min-width: 0;
@@ -1498,7 +1508,7 @@
         return;
       }
 
-      els.recordList.innerHTML = filtered.map(t => {
+      els.recordList.innerHTML = filtered.map((t, i) => {
         const catList = t.type === 'income'
           ? [...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES]
           : [...CATEGORIES, ...LEGACY_CATEGORIES];
@@ -1507,6 +1517,7 @@
         const colorClass = t.type === 'income' ? 'income' : 'expense';
         return `
           <div class="record-item" data-id="${t.id}" style="cursor:pointer;">
+            <div class="record-index">${String(i + 1).padStart(2, '0')}</div>
             <div class="record-icon" style="background: ${cat.color}">${TWEMOJI_SVGS[cat.svgCode]}</div>
             <div class="record-info">
               <div class="record-top">
