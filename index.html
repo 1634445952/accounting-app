@@ -206,9 +206,10 @@
       border-radius: var(--radius-sm);
       box-shadow: var(--shadow);
       margin-bottom: 18px;
+      gap: 10px;
     }
 
-    .month-selector button {
+    .month-selector > button {
       width: 34px;
       height: 34px;
       border: none;
@@ -220,12 +221,42 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
 
     .month-text {
       font-size: 17px;
       font-weight: 700;
       color: var(--text-main);
+      flex: 1;
+      text-align: center;
+    }
+
+    .view-toggle {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      background: var(--primary-bg);
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .view-tab {
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+
+    .view-tab.active {
+      background: #fff;
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
 
     /* 汇总卡片 */
@@ -907,11 +938,15 @@
         <h1 class="page-title">花销日记</h1>
       </div>
 
-      <!-- 月份选择 -->
+      <!-- 月份/日期选择 -->
       <div class="month-selector">
-        <button id="prevMonth">‹</button>
-        <span class="month-text" id="monthText">2026年7月</span>
-        <button id="nextMonth">›</button>
+        <button id="prevDate">‹</button>
+        <span class="month-text" id="dateText">2026年7月</span>
+        <button id="nextDate">›</button>
+        <div class="view-toggle">
+          <button class="view-tab active" data-mode="month">月</button>
+          <button class="view-tab" data-mode="day">日</button>
+        </div>
       </div>
 
       <!-- 汇总 -->
@@ -1102,6 +1137,7 @@
 
     // ==================== 状态 ====================
     let currentDate = new Date(2026, 6, 1); // 默认 2026年7月
+    let viewMode = 'month'; // 'month' | 'day'
     let transactions = [];
     let currentType = 'expense';
     let currentCategory = null;
@@ -1118,9 +1154,9 @@
       sidebar: document.getElementById('sidebar'),
       sidebarOverlay: document.getElementById('sidebarOverlay'),
       menuBtn: document.getElementById('menuBtn'),
-      monthText: document.getElementById('monthText'),
-      prevMonth: document.getElementById('prevMonth'),
-      nextMonth: document.getElementById('nextMonth'),
+      monthText: document.getElementById('dateText'),
+      prevMonth: document.getElementById('prevDate'),
+      nextMonth: document.getElementById('nextDate'),
       incomeTotal: document.getElementById('incomeTotal'),
       expenseTotal: document.getElementById('expenseTotal'),
       balanceTotal: document.getElementById('balanceTotal'),
@@ -1264,28 +1300,40 @@
 
     // ==================== 渲染 ====================
     function renderAll() {
-      updateMonthText();
+      updateDateText();
       renderSummary();
       renderChart();
       refreshFilterCategoryOptions();
       renderRecords();
     }
 
-    function updateMonthText() {
-      els.monthText.textContent = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`;
+    function updateDateText() {
+      const y = currentDate.getFullYear();
+      const m = currentDate.getMonth() + 1;
+      const d = currentDate.getDate();
+      els.monthText.textContent = viewMode === 'day'
+        ? `${y}年${m}月${d}日`
+        : `${y}年${m}月`;
     }
 
-    function getMonthTransactions() {
+    function getCurrentPeriodTransactions() {
       const y = currentDate.getFullYear();
       const m = currentDate.getMonth();
+      if (viewMode === 'day') {
+        const d = currentDate.getDate();
+        return transactions.filter(t => {
+          const dt = new Date(t.date);
+          return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
+        });
+      }
       return transactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getFullYear() === y && d.getMonth() === m;
+        const dt = new Date(t.date);
+        return dt.getFullYear() === y && dt.getMonth() === m;
       });
     }
 
     function renderSummary() {
-      const monthData = getMonthTransactions();
+      const monthData = getCurrentPeriodTransactions();
       const income = monthData.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
       const expense = monthData.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
       const balance = income - expense;
@@ -1349,12 +1397,13 @@
     }
 
     function renderChart() {
-      const monthData = getMonthTransactions();
+      const monthData = getCurrentPeriodTransactions();
       const data = monthData.filter(t => t.type === chartType);
 
       // 标题与空状态文案
+      const periodLabel = viewMode === 'day' ? '今日' : '本月';
       els.chartTitle.textContent = chartType === 'income' ? '收入构成' : '支出构成';
-      els.chartEmptyText.textContent = chartType === 'income' ? '本月暂无收入记录' : '本月暂无支出记录';
+      els.chartEmptyText.textContent = chartType === 'income' ? `${periodLabel}暂无收入记录` : `${periodLabel}暂无支出记录`;
 
       if (data.length === 0) {
         els.chartCanvas.style.display = 'none';
@@ -1493,7 +1542,7 @@
     }
 
     function renderRecords() {
-      const monthData = getMonthTransactions();
+      const monthData = getCurrentPeriodTransactions();
       const filtered = applyFilters(monthData).sort((a, b) => new Date(b.date) - new Date(a.date));
       renderFilterSummary(filtered, monthData);
 
@@ -1502,7 +1551,7 @@
         els.recordList.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">${isFiltering ? '🔍' : '📝'}</div>
-            <div>${isFiltering ? '当前筛选条件下没有记录' : '本月还没有记录，点击上方分类开始记账吧'}</div>
+            <div>${isFiltering ? '当前筛选条件下没有记录' : (viewMode === 'day' ? '今日还没有记录，点击上方分类开始记账吧' : '本月还没有记录，点击上方分类开始记账吧')}</div>
           </div>
         `;
         return;
@@ -1605,7 +1654,7 @@
       }
 
       // 来源：当月实际出现过的分类，与 pool 取交集，保持原顺序
-      const monthData = getMonthTransactions();
+      const monthData = getCurrentPeriodTransactions();
       const present = new Set(monthData.map(t => t.category));
       const names = pool.filter(c => present.has(c.name)).map(c => c.name);
 
@@ -1722,19 +1771,26 @@
     }
 
     function clearMonthData() {
-      const monthData = getMonthTransactions();
-      if (monthData.length === 0) {
-        showToast('本月暂无记录');
+      const periodData = getCurrentPeriodTransactions();
+      if (periodData.length === 0) {
+        showToast(viewMode === 'day' ? '今日暂无记录' : '本月暂无记录');
         return;
       }
-      if (!confirm(`确定清空 ${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月 的所有记录吗？`)) return;
+      const y = currentDate.getFullYear();
+      const m = currentDate.getMonth() + 1;
+      const d = currentDate.getDate();
+      const label = viewMode === 'day' ? `${y}年${m}月${d}日` : `${y}年${m}月`;
+      if (!confirm(`确定清空 ${label} 的所有记录吗？`)) return;
       transactions = transactions.filter(t => {
-        const d = new Date(t.date);
-        return !(d.getFullYear() === currentDate.getFullYear() && d.getMonth() === currentDate.getMonth());
+        const dt = new Date(t.date);
+        if (viewMode === 'day') {
+          return !(dt.getFullYear() === y && dt.getMonth() === currentDate.getMonth() && dt.getDate() === d);
+        }
+        return !(dt.getFullYear() === y && dt.getMonth() === currentDate.getMonth());
       });
       saveData();
       renderAll();
-      showToast('已清空本月记录');
+      showToast(viewMode === 'day' ? '已清空今日记录' : '已清空本月记录');
     }
 
     // ==================== 事件绑定 ====================
@@ -1749,14 +1805,35 @@
         els.sidebarOverlay.classList.remove('open');
       });
 
-      // 月份切换
+      // 日期切换（月/日通用，JS Date 自动跨月）
       els.prevMonth.addEventListener('click', () => {
-        currentDate.setMonth(currentDate.getMonth() - 1);
+        if (viewMode === 'day') {
+          currentDate.setDate(currentDate.getDate() - 1);
+        } else {
+          currentDate.setMonth(currentDate.getMonth() - 1);
+        }
         renderAll();
       });
       els.nextMonth.addEventListener('click', () => {
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        if (viewMode === 'day') {
+          currentDate.setDate(currentDate.getDate() + 1);
+        } else {
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        }
         renderAll();
+      });
+
+      // 视图切换（月/日）
+      document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const mode = tab.dataset.mode;
+          if (mode === viewMode) return;
+          viewMode = mode;
+          document.querySelectorAll('.view-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.mode === mode);
+          });
+          renderAll();
+        });
       });
 
       // 类型切换已移除（支出和收入分类分别由两块网格常驻展示）
