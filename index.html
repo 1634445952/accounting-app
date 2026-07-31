@@ -1422,22 +1422,34 @@
     }
 
     function refreshFilterCategoryOptions() {
-      // 用当月记录中出现过的所有分类（含 LEGACY）作为下拉选项
+      // 根据 filterState.type 决定可选分类范围
+      const type = filterState.type;
+      let pool;
+      if (type === 'income') {
+        pool = [...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES];
+      } else if (type === 'expense') {
+        pool = [...CATEGORIES, ...LEGACY_CATEGORIES];
+      } else {
+        pool = [...CATEGORIES, ...LEGACY_CATEGORIES, ...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES];
+      }
+
+      // 来源：当月实际出现过的分类，与 pool 取交集，保持原顺序
       const monthData = getMonthTransactions();
-      const names = [...new Set(monthData.map(t => t.category))];
-      const allCats = [...CATEGORIES, ...LEGACY_CATEGORIES, ...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES];
+      const present = new Set(monthData.map(t => t.category));
+      const names = pool.filter(c => present.has(c.name)).map(c => c.name);
+
       const opts = ['<option value="">全部分类</option>'];
-      names.sort((a, b) => {
-        const aIn = allCats.findIndex(c => c.name === a);
-        const bIn = allCats.findIndex(c => c.name === b);
-        return (aIn < 0 ? 999 : aIn) - (bIn < 0 ? 999 : bIn);
-      });
       names.forEach(n => {
-        const cat = allCats.find(c => c.name === n);
+        const cat = pool.find(c => c.name === n);
         const icon = cat ? TWEMOJI_SVGS[cat.svgCode] || '' : '';
         opts.push(`<option value="${n}" ${filterState.category === n ? 'selected' : ''}>${icon} ${n}</option>`);
       });
       els.filterCategory.innerHTML = opts.join('');
+
+      // 如果当前选中的分类不在新列表中，自动清空
+      if (filterState.category && !names.includes(filterState.category)) {
+        filterState.category = '';
+      }
     }
 
     function editTransaction(id) {
@@ -1603,6 +1615,7 @@
       });
       els.filterType.addEventListener('change', () => {
         filterState.type = els.filterType.value;
+        refreshFilterCategoryOptions(); // 联动：切换收支后重新生成分类下拉
         renderRecords();
       });
       els.filterDateFrom.addEventListener('change', () => {
