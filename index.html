@@ -806,12 +806,20 @@
         </div>
       </div>
 
-      <!-- 分类记账 -->
+      <!-- 支出分类记账 -->
       <div class="card">
         <div class="card-title">
-          <span>记账</span>
+          <span>支出分类</span>
         </div>
         <div class="category-grid" id="categoryGrid"></div>
+      </div>
+
+      <!-- 收入分类记账 -->
+      <div class="card">
+        <div class="card-title">
+          <span>收入分类</span>
+        </div>
+        <div class="category-grid" id="incomeCategoryGrid"></div>
       </div>
 
       <!-- 最近记录 -->
@@ -834,15 +842,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">收支类型</label>
-        <div class="type-tabs">
-          <button class="type-tab expense active" data-type="expense">支出</button>
-          <button class="type-tab income" data-type="income">收入</button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">分类</label>
+        <label class="form-label" id="modalCategoryLabel">分类</label>
         <div class="modal-category-grid" id="modalCategoryGrid"></div>
       </div>
 
@@ -916,8 +916,7 @@
     { name: '日用品', color: '#E0F7FA', chartColor: '#26C6DA', svgCode: '1faa5' },
     { name: '通讯会员', color: '#F3E5F5', chartColor: '#AB47BC', svgCode: '1f451' },
     { name: '小东小西', color: '#FFE0B2', chartColor: '#FB8C00', svgCode: '1f4e6' },
-    { name: '交通', color: '#E8EAF6', chartColor: '#5C6BC0', svgCode: '1f68c' },
-    { name: '收入', color: '#E8F5E9', chartColor: '#4CAF50', svgCode: '1f4b0' }
+    { name: '交通', color: '#E8EAF6', chartColor: '#5C6BC0', svgCode: '1f68c' }
   ];
 
     const INCOME_CATEGORIES = [
@@ -964,6 +963,7 @@
       expenseTotal: document.getElementById('expenseTotal'),
       balanceTotal: document.getElementById('balanceTotal'),
       categoryGrid: document.getElementById('categoryGrid'),
+      incomeCategoryGrid: document.getElementById('incomeCategoryGrid'),
       recordList: document.getElementById('recordList'),
       modalOverlay: document.getElementById('modalOverlay'),
       modalTitle: document.getElementById('modalTitle'),
@@ -1104,9 +1104,9 @@
     }
 
     function renderCategories() {
-      const list = currentType === 'expense' ? CATEGORIES : INCOME_CATEGORIES;
-      els.categoryGrid.innerHTML = list.map(cat => `
-        <div class="category-item" data-category="${cat.name}">
+      // 支出分类网格（固定为支出）
+      els.categoryGrid.innerHTML = CATEGORIES.map(cat => `
+        <div class="category-item" data-category="${cat.name}" data-type="expense">
           <div class="category-icon" style="background: ${cat.color}">${TWEMOJI_SVGS[cat.svgCode]}</div>
           <div class="category-name">${cat.name}</div>
         </div>
@@ -1114,6 +1114,23 @@
 
       els.categoryGrid.querySelectorAll('.category-item').forEach(item => {
         item.addEventListener('click', () => {
+          currentType = 'expense';
+          currentCategory = item.dataset.category;
+          openModal();
+        });
+      });
+
+      // 收入分类网格（固定为收入）
+      els.incomeCategoryGrid.innerHTML = INCOME_CATEGORIES.map(cat => `
+        <div class="category-item" data-category="${cat.name}" data-type="income">
+          <div class="category-icon" style="background: ${cat.color}">${TWEMOJI_SVGS[cat.svgCode]}</div>
+          <div class="category-name">${cat.name}</div>
+        </div>
+      `).join('');
+
+      els.incomeCategoryGrid.querySelectorAll('.category-item').forEach(item => {
+        item.addEventListener('click', () => {
+          currentType = 'income';
           currentCategory = item.dataset.category;
           openModal();
         });
@@ -1269,11 +1286,7 @@
       currentCategory = t.category;
       currentPayment = t.payment;
 
-      // 同步 UI
-      document.querySelectorAll('.type-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.type === t.type);
-      });
-      renderCategories();
+      // 同步 UI（不再需要 type-tab，已通过 currentType 控制弹窗分类网格）
       renderModalCategories();
 
       els.paymentOptions.querySelectorAll('.payment-option').forEach(b => {
@@ -1396,22 +1409,7 @@
         renderAll();
       });
 
-      // 类型切换
-      document.querySelectorAll('.type-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          currentType = tab.dataset.type;
-          // 类型切换后，默认选第一个分类
-          const list = currentType === 'expense' ? CATEGORIES : INCOME_CATEGORIES;
-          currentCategory = list[0].name;
-          renderCategories();
-          // 如果弹窗开着，同步刷新弹窗内分类网格
-          if (els.modalOverlay.classList.contains('open')) {
-            renderModalCategories();
-          }
-        });
-      });
+      // 类型切换已移除（支出和收入分类分别由两块网格常驻展示）
 
       // 支付方式
       els.paymentOptions.querySelectorAll('.payment-option').forEach(btn => {
