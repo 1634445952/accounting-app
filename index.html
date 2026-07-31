@@ -1465,7 +1465,11 @@
         b.classList.toggle('active', b.dataset.payment === t.payment);
       });
 
-      els.modalTitle.textContent = '编辑记录';
+      const catList = currentType === 'income'
+        ? [...INCOME_CATEGORIES, ...LEGACY_INCOME_CATEGORIES]
+        : [...CATEGORIES, ...LEGACY_CATEGORIES];
+      const cat = catList.find(c => c.name === currentCategory);
+      els.modalTitle.innerHTML = `编辑记录${cat ? ' <span style="vertical-align:middle;display:inline-block;">' + TWEMOJI_SVGS[cat.svgCode] + '</span> ' + cat.name : ''}`;
       els.amountInput.value = t.amount;
       els.noteInput.value = t.note || '';
       els.dateInput.value = t.date;
@@ -1485,7 +1489,10 @@
       editingId = null;
       const catList = currentType === 'expense' ? CATEGORIES : INCOME_CATEGORIES;
       const cat = catList.find(c => c.name === currentCategory);
-      els.modalTitle.textContent = `记一笔 - ${cat ? TWEMOJI_SVGS[cat.svgCode] + ' ' + cat.name : ''}`;
+      const titleIcon = (cat && TWEMOJI_SVGS[cat.svgCode])
+        ? ' <span style="vertical-align:middle;display:inline-block;">' + TWEMOJI_SVGS[cat.svgCode] + '</span> ' + cat.name
+        : '';
+      els.modalTitle.innerHTML = `记一笔${titleIcon}`;
       els.amountInput.value = '';
       els.noteInput.value = '';
       els.dateInput.value = currentDate.toISOString().split('T')[0];
