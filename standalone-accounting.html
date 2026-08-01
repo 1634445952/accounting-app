@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <!-- 版本标识：v19 — 2026-08-01 OCR截图识别 -->
+  <!-- 版本标识：v20 — 2026-08-01 OCR性能优化 -->
   <!-- PWA / 添加到主屏幕 -->
   <meta name="theme-color" content="#E91E63" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2333,6 +2333,21 @@
 
     // ==================== 截图 OCR 识别记账 ====================
 
+    // 全局 OCR Worker 复用（避免每次重新加载语言包）
+    let _ocrWorker = null;
+    async function getOcrWorker() {
+      if (_ocrWorker) return _ocrWorker;
+      els.ocrStatus.textContent = '首次加载识别引擎...';
+      _ocrWorker = await Tesseract.createWorker('chi_sim', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            els.ocrStatus.textContent = `正在识别... ${Math.round(m.progress * 100)}%`;
+          }
+        }
+      });
+      return _ocrWorker;
+    }
+
     // OCR 主流程：选图 → 识别 → 预填弹框
     async function handleOcrImage(file) {
       if (typeof Tesseract === 'undefined') {
@@ -2360,26 +2375,18 @@
           i.src = imgUrl;
         });
 
-        // 画到 canvas（放大 2x 提升小字识别率）
+        // 画到 canvas（仅在小图时放大，大图保持原尺寸）
         const canvas = document.createElement('canvas');
-        const scale = 2;
+        const scale = img.width < 600 ? 2 : 1; // 只放大小图
         canvas.width = img.width * scale;
         canvas.height = img.height * scale;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // OCR 识别
+        // OCR 识别（复用全局 worker 加速）
         els.ocrStatus.textContent = '正在识别文字...';
-        const worker = await Tesseract.createWorker(['chi_sim', 'eng'], 1, {
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              els.ocrStatus.textContent = `正在识别... ${Math.round(m.progress * 100)}%`;
-            }
-          }
-        });
-
+        const worker = await getOcrWorker();
         const { data: { text } } = await worker.recognize(canvas);
-        await worker.terminate();
 
         console.log('[OCR] 识别结果:\n', text);
 
