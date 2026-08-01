@@ -884,6 +884,35 @@
       opacity: 1;
     }
 
+    /* ============== 快速记账悬浮按钮 (FAB) ============== */
+    .fab-add {
+      position: fixed;
+      bottom: 28px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FF6B9D, #E91E63);
+      color: #fff;
+      border: none;
+      font-size: 28px;
+      line-height: 1;
+      box-shadow: 0 6px 20px rgba(233,30,99,0.40);
+      cursor: pointer;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .fab-add:active {
+      transform: scale(0.90);
+      box-shadow: 0 3px 10px rgba(233,30,99,0.50);
+    }
+    @media (min-width: 769px) {
+      .fab-add { bottom: 32px; right: 32px; }
+    }
+
     /* ============== 收支分析页 ============== */
     .analysis-filter {
       display: flex;
@@ -1259,6 +1288,9 @@
     </aside>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- 快速记账悬浮按钮 -->
+    <button class="fab-add" id="fabAdd" aria-label="快速记账">＋</button>
+
     <!-- 主内容 -->
     <main class="main-content">
       <div class="mobile-header">
@@ -1577,6 +1609,7 @@
       sidebar: document.getElementById('sidebar'),
       sidebarOverlay: document.getElementById('sidebarOverlay'),
       menuBtn: document.getElementById('menuBtn'),
+      fabAdd: document.getElementById('fabAdd'),
       monthText: document.getElementById('dateText'),
       prevMonth: document.getElementById('prevDate'),
       nextMonth: document.getElementById('nextDate'),
@@ -1647,6 +1680,11 @@
       els.summaryCards.querySelectorAll('.summary-card').forEach(card => {
         card.classList.toggle('active', card.dataset.chartType === chartType);
       });
+      // 快速记账：URL 带 action=add 时自动弹出记账框
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'add') {
+        setTimeout(() => openModal(), 300);
+      }
     }
 
 
@@ -2332,6 +2370,13 @@
       els.sidebarOverlay.addEventListener('click', () => {
         els.sidebar.classList.remove('open');
         els.sidebarOverlay.classList.remove('open');
+      });
+
+      // 快速记账悬浮按钮
+      els.fabAdd.addEventListener('click', () => {
+        currentType = 'expense';
+        currentCategory = null;
+        openModal();
       });
 
       // 日期切换（月/日通用，JS Date 自动跨月）
