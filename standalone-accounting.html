@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <!-- 版本标识：v20 — 2026-08-01 OCR性能优化 -->
+  <!-- 版本标识：v21 — 2026-08-01 OCR精度优化+灰度预处理 -->
   <!-- PWA / 添加到主屏幕 -->
   <meta name="theme-color" content="#E91E63" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2375,13 +2375,23 @@
           i.src = imgUrl;
         });
 
-        // 画到 canvas（仅在小图时放大，大图保持原尺寸）
+        // 画到 canvas（手机截图分辨率高但字小，固定放大 1.5x 提升识别率）
         const canvas = document.createElement('canvas');
-        const scale = img.width < 600 ? 2 : 1; // 只放大小图
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
+        const scale = 1.5;
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // 转灰度提升识别率
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imageData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+          d[i] = d[i+1] = d[i+2] = gray;
+        }
+        ctx.putImageData(imageData, 0, 0);
 
         // OCR 识别（复用全局 worker 加速）
         els.ocrStatus.textContent = '正在识别文字...';
@@ -2412,20 +2422,40 @@
     // 从 OCR 文本中提取金额、日期、备注、支付方式
     function parseReceiptText(text) {
       const result = { amount: '', date: '', note: '', payment: '微信支付' };
+      // 清理空白，统一处理
+      const t = text.replace(/\s+/g, ' ').trim();
 
-      // === 金额提取（优先级从高到低）===
-      // 支付宝"实付"字段
-      let m = text.match(/实付[¥￥]?\s*[:：]?\s*(\d+\.?\d*)/);
-      if (!m) m = text.match(/[¥￥]\s*(\d+\.\d{2})/);          // 通用 ¥xx.xx
-      if (!m) m = text.match(/金额[：:]\s*(\d+\.?\d*)/);        // 银行短信
-      if (!m) m = text.match(/(\d+\.\d{2})\s*元/);              // xx.xx元
-      if (!m) m = text.match(/[¥￥]\s*(\d+\.?\d*)/);            // ¥xx
+      // ==================== 金额提取 ====================
+      // 优先级 1：支付宝 "实付 ¥xx.xx"
+      let m = t.match(/实付\s*[¥￥]\s*(\d+\.\d{1,2})/);
+      // 优先级 2：通用 "¥xx.xx" 或 "￥xx.xx"
+      if (!m) m = t.match(/[¥￥]\s*(\d+\.\d{1,2})/);
+      // 优先级 3：银行短信 "金额：xx.xx"
+      if (!m) m = t.match(/金额\s*[：:]\s*(\d+\.\d{1,2})/);
+      // 优先级 4：微信账单详情页 "-xx.xx"（负数）
+      if (!m) m = t.match(/[-−]\s*(\d+\.\d{1,2})/);
+      // 优先级 5：支付宝/微信顶部大字 "10.90"（独立数字）
+      if (!m) {
+        const bigNum = t.match(/\b(\d{1,5}\.\d{2})\b/);
+        if (bigNum) m = bigNum;
+      }
+      // 优先级 6："xx.xx元"
+      if (!m) m = t.match(/(\d+\.\d{2})\s*元/);
       if (m) result.amount = m[1];
 
-      // === 日期提取 ===
-      const dm = text.match(/(\d{4})[-年/](\d{1,2})[-月/](\d{1,2})/);
+      // ==================== 日期提取 ====================
+      // 中文年月日："2026年7月30日"
+      let dm = t.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+      // 横线/斜线："2026-07-30" / "2026/7/30"
+      if (!dm) dm = t.match(/(\d{4})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{1,2})/);
+      // 月日年："07-30-2026"
+      if (!dm) dm = t.match(/(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{4})/);
       if (dm) {
-        result.date = `${dm[1]}-${dm[2].padStart(2,'0')}-${dm[3].padStart(2,'0')}`;
+        if (dm[1].length === 4) {
+          result.date = `${dm[1]}-${dm[2].padStart(2,'0')}-${dm[3].padStart(2,'0')}`;
+        } else {
+          result.date = `${dm[3]}-${dm[1].padStart(2,'0')}-${dm[2].padStart(2,'0')}`;
+        }
       } else {
         const _now = new Date();
         const _y = _now.getFullYear();
@@ -2434,30 +2464,35 @@
         result.date = `${_y}-${_m}-${_d}`;
       }
 
-      // === 支付方式推断 ===
-      if (/微信支付|微信/.test(text)) result.payment = '微信支付';
-      else if (/支付宝/.test(text)) result.payment = '支付宝';
-      else if (/银行卡|尾号\d{4}|尾号\d{4}|信用卡|储蓄卡/.test(text)) result.payment = '其他';
+      // ==================== 支付方式推断 ====================
+      if (/零钱通|微信支付|微信/.test(t)) result.payment = '微信支付';
+      else if (/支付宝|余额宝/.test(t)) result.payment = '支付宝';
+      else if (/银行卡|尾号\s*\d{4}|信用卡|储蓄卡/.test(t)) result.payment = '其他';
       else result.payment = '微信支付';
 
-      // === 商品名/备注提取 ===
-      // 微信：收款方 / 商家名
-      let nm = text.match(/收款方[：:]\s*(.+?)[\n\r]/);
-      if (!nm) nm = text.match(/商家[：:]\s*(.+?)[\n\r]/);
-      // 支付宝：商品说明
-      if (!nm) nm = text.match(/商品说明[：:]\s*(.+?)[\n\r]/);
-      if (!nm) nm = text.match(/商品名[称称][：:]\s*(.+?)[\n\r]/);
-      // 通用：取第一行非空文本（可能是商品名）
+      // ==================== 商品名/备注提取 ====================
+      // 微信账单详情页："商品: xxx" 或 "商户全称: xxx"
+      let nm = t.match(/商品\s*[：:]\s*([^,\n\r]+?)(?=\s+(?:商户|收单|支付方式|交易单号|当前状态|支付时间|$))/);
+      if (!nm) nm = t.match(/商户全称\s*[：:]\s*([^,\n\r]+?)(?=\s+(?:收单|支付方式|交易单号|当前状态|支付时间|$))/);
+      // 支付宝账单详情页
+      if (!nm) nm = t.match(/商品说明\s*[：:]\s*([^,\n\r]+?)(?=\s+(?:交易号|收钱方|付款方式|$))/);
+      // 旧版本
+      if (!nm) nm = t.match(/收款方\s*[：:]\s*([^,\n\r]+?)(?=\s+(?:支付方式|交易号|$))/);
+      if (!nm) nm = t.match(/商家\s*[：:]\s*([^,\n\r]+?)(?=\s+(?:支付方式|交易号|$))/);
+
+      // 兜底：取大字号商家名（通常在顶部第一段短文本）
       if (!nm) {
-        const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l && !/^\d/.test(l) && !/[¥￥元]/.test(l));
-        if (lines.length > 0) {
-          // 取最短的一行（通常是商品名，而非一大段地址）
-          const short = lines.reduce((a, b) => a.length <= b.length ? a : b);
-          if (short.length <= 30) nm = [null, short];
+        const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l && l.length >= 3 && l.length <= 30);
+        // 优先取不含数字/¥/元/-/时间的行（大概率是商家名）
+        const filtered = lines.filter(l => !/^[-\d.\s]+$/.test(l) && !/[¥￥元]/.test(l) && !/(?:支付|状态|订单|时间|单号|商户|商品|收单|退款|金额|分笔|撤销|备注|账单)/.test(l) && !/^[\d:\-\/\s年月日]+$/.test(l));
+        if (filtered.length > 0) {
+          // 取最前面的一行（通常是商家名）
+          nm = [null, filtered[0]];
         }
       }
       if (nm) result.note = nm[1].trim().substring(0, 50);
 
+      console.log('[OCR] parseReceiptText result:', result);
       return result;
     }
 
