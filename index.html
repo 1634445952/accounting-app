@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <!-- 版本标识：v17 — 2026-08-01 -->
+  <!-- 版本标识：v19 — 2026-08-01 OCR截图识别 -->
   <!-- PWA / 添加到主屏幕 -->
   <meta name="theme-color" content="#E91E63" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -18,6 +18,7 @@
   <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=17" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=17" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js?v=17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --primary: #E91E63;
@@ -911,6 +912,59 @@
     }
     @media (min-width: 769px) {
       .fab-add { bottom: 32px; right: 32px; }
+      .fab-ocr { bottom: 100px; right: 32px; }
+    }
+
+    /* ============== OCR 截图识别按钮 ============== */
+    .fab-ocr {
+      position: fixed;
+      bottom: 96px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #F8BBD0, #F48FB1);
+      color: #fff;
+      border: none;
+      font-size: 24px;
+      box-shadow: 0 6px 20px rgba(244,143,177,0.40);
+      cursor: pointer;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .fab-ocr:active {
+      transform: scale(0.90);
+      box-shadow: 0 3px 10px rgba(244,143,177,0.50);
+    }
+
+    /* OCR 识别中遮罩 */
+    .ocr-loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .ocr-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: #FF6B9D;
+      border-radius: 50%;
+      animation: ocrSpin 0.8s linear infinite;
+    }
+    @keyframes ocrSpin { to { transform: rotate(360deg); } }
+    .ocr-status {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
     }
 
     /* ============== 收支分析页 ============== */
@@ -1290,6 +1344,13 @@
 
     <!-- 快速记账悬浮按钮 -->
     <button class="fab-add" id="fabAdd" aria-label="快速记账">＋</button>
+    <!-- 截图识别记账按钮 -->
+    <button class="fab-ocr" id="fabOcr" aria-label="截图识别记账">📷</button>
+    <input type="file" id="ocrFileInput" accept="image/*" style="display:none">
+    <div class="ocr-loading" id="ocrLoading" style="display:none">
+      <div class="ocr-spinner"></div>
+      <div class="ocr-status" id="ocrStatus">正在识别...</div>
+    </div>
 
     <!-- 主内容 -->
     <main class="main-content">
@@ -1610,6 +1671,10 @@
       sidebarOverlay: document.getElementById('sidebarOverlay'),
       menuBtn: document.getElementById('menuBtn'),
       fabAdd: document.getElementById('fabAdd'),
+      fabOcr: document.getElementById('fabOcr'),
+      ocrFileInput: document.getElementById('ocrFileInput'),
+      ocrLoading: document.getElementById('ocrLoading'),
+      ocrStatus: document.getElementById('ocrStatus'),
       monthText: document.getElementById('dateText'),
       prevMonth: document.getElementById('prevDate'),
       nextMonth: document.getElementById('nextDate'),
@@ -2266,6 +2331,153 @@
       return map[payment] || '💳';
     }
 
+    // ==================== 截图 OCR 识别记账 ====================
+
+    // OCR 主流程：选图 → 识别 → 预填弹框
+    async function handleOcrImage(file) {
+      if (typeof Tesseract === 'undefined') {
+        showToast('OCR 库加载中，请稍后再试');
+        return;
+      }
+
+      // 显示遮罩
+      els.ocrLoading.style.display = 'flex';
+      els.ocrStatus.textContent = '正在加载识别引擎...';
+
+      try {
+        // 读取图片
+        const imgUrl = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+
+        const img = await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = imgUrl;
+        });
+
+        // 画到 canvas（放大 2x 提升小字识别率）
+        const canvas = document.createElement('canvas');
+        const scale = 2;
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // OCR 识别
+        els.ocrStatus.textContent = '正在识别文字...';
+        const worker = await Tesseract.createWorker(['chi_sim', 'eng'], 1, {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              els.ocrStatus.textContent = `正在识别... ${Math.round(m.progress * 100)}%`;
+            }
+          }
+        });
+
+        const { data: { text } } = await worker.recognize(canvas);
+        await worker.terminate();
+
+        console.log('[OCR] 识别结果:\n', text);
+
+        // 解析提取
+        const parsed = parseReceiptText(text);
+        console.log('[OCR] 解析结果:', parsed);
+
+        // 预填弹框
+        fillModalFromOcr(parsed);
+
+      } catch (err) {
+        console.error('[OCR] 错误:', err);
+        showToast('识别失败，请手动输入');
+        // 仍然打开弹框
+        currentType = 'expense';
+        currentCategory = null;
+        openModal();
+      } finally {
+        els.ocrLoading.style.display = 'none';
+      }
+    }
+
+    // 从 OCR 文本中提取金额、日期、备注、支付方式
+    function parseReceiptText(text) {
+      const result = { amount: '', date: '', note: '', payment: '微信支付' };
+
+      // === 金额提取（优先级从高到低）===
+      // 支付宝"实付"字段
+      let m = text.match(/实付[¥￥]?\s*[:：]?\s*(\d+\.?\d*)/);
+      if (!m) m = text.match(/[¥￥]\s*(\d+\.\d{2})/);          // 通用 ¥xx.xx
+      if (!m) m = text.match(/金额[：:]\s*(\d+\.?\d*)/);        // 银行短信
+      if (!m) m = text.match(/(\d+\.\d{2})\s*元/);              // xx.xx元
+      if (!m) m = text.match(/[¥￥]\s*(\d+\.?\d*)/);            // ¥xx
+      if (m) result.amount = m[1];
+
+      // === 日期提取 ===
+      const dm = text.match(/(\d{4})[-年/](\d{1,2})[-月/](\d{1,2})/);
+      if (dm) {
+        result.date = `${dm[1]}-${dm[2].padStart(2,'0')}-${dm[3].padStart(2,'0')}`;
+      } else {
+        const _now = new Date();
+        const _y = _now.getFullYear();
+        const _m = String(_now.getMonth() + 1).padStart(2, '0');
+        const _d = String(_now.getDate()).padStart(2, '0');
+        result.date = `${_y}-${_m}-${_d}`;
+      }
+
+      // === 支付方式推断 ===
+      if (/微信支付|微信/.test(text)) result.payment = '微信支付';
+      else if (/支付宝/.test(text)) result.payment = '支付宝';
+      else if (/银行卡|尾号\d{4}|尾号\d{4}|信用卡|储蓄卡/.test(text)) result.payment = '其他';
+      else result.payment = '微信支付';
+
+      // === 商品名/备注提取 ===
+      // 微信：收款方 / 商家名
+      let nm = text.match(/收款方[：:]\s*(.+?)[\n\r]/);
+      if (!nm) nm = text.match(/商家[：:]\s*(.+?)[\n\r]/);
+      // 支付宝：商品说明
+      if (!nm) nm = text.match(/商品说明[：:]\s*(.+?)[\n\r]/);
+      if (!nm) nm = text.match(/商品名[称称][：:]\s*(.+?)[\n\r]/);
+      // 通用：取第一行非空文本（可能是商品名）
+      if (!nm) {
+        const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l && !/^\d/.test(l) && !/[¥￥元]/.test(l));
+        if (lines.length > 0) {
+          // 取最短的一行（通常是商品名，而非一大段地址）
+          const short = lines.reduce((a, b) => a.length <= b.length ? a : b);
+          if (short.length <= 30) nm = [null, short];
+        }
+      }
+      if (nm) result.note = nm[1].trim().substring(0, 50);
+
+      return result;
+    }
+
+    // 用 OCR 结果预填记账弹框
+    function fillModalFromOcr(data) {
+      currentType = 'expense';
+      currentCategory = null;
+      openModal(); // 先打开弹框（会重置字段为默认值）
+
+      // 覆盖填入 OCR 结果
+      if (data.amount) els.amountInput.value = data.amount;
+      if (data.date) els.dateInput.value = data.date;
+      if (data.note) els.noteInput.value = data.note;
+
+      // 设置支付方式
+      if (data.payment) {
+        currentPayment = data.payment;
+        els.paymentOptions.querySelectorAll('.payment-option').forEach(b => {
+          b.classList.toggle('active', b.dataset.payment === data.payment);
+        });
+      }
+
+      // 更新标题提示
+      els.modalTitle.innerHTML = '📷 识别记账 <span style="font-size:12px;color:#B58FA8;">请核对后保存</span>';
+      showToast('已识别填入，请核对后保存');
+    }
+
     // ==================== 弹窗 ====================
     function openModal() {
       editingId = null;
@@ -2377,6 +2589,16 @@
         currentType = 'expense';
         currentCategory = null;
         openModal();
+      });
+
+      // 截图识别记账按钮
+      els.fabOcr.addEventListener('click', () => {
+        els.ocrFileInput.click();
+      });
+      els.ocrFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleOcrImage(file);
+        e.target.value = ''; // 允许重复选同一张图
       });
 
       // 日期切换（月/日通用，JS Date 自动跨月）
